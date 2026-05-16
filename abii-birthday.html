@@ -109,6 +109,14 @@ section{padding:5.5rem 1.5rem;position:relative;}
 #lb-close:hover{color:var(--pink);}
 .admin-launch{position:fixed;left:1rem;bottom:1rem;z-index:1001;width:48px;height:48px;border-radius:50%;border:1px solid rgba(244,167,192,.35);background:rgba(244,167,192,.12);color:var(--pink);font-size:1.45rem;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 18px rgba(244,167,192,.12);backdrop-filter:blur(12px);transition:transform .25s,background .25s;}
 .admin-launch:hover{transform:scale(1.05);background:rgba(244,167,192,.18);}
+.admin-overlay{position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;padding:1.5rem;overflow:auto;}
+.admin-overlay.on{display:flex;}
+.admin-panel{position:relative;width:min(100%,760px);max-height:calc(100vh - 3rem);overflow:auto;background:rgba(13,11,20,.98);border:1px solid rgba(244,167,192,.2);border-radius:28px;padding:2rem;box-shadow:0 0 80px rgba(244,167,192,.2);}
+.admin-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:rgba(255,255,255,.75);font-size:1.4rem;cursor:pointer;}
+.admin-close:hover{color:var(--pink);}
+.admin-panel h2{font-family:'Cormorant Garamond',serif;font-size:2.6rem;margin-bottom:.6rem;color:var(--pink);}
+.admin-panel p{color:rgba(255,255,255,.75);margin-bottom:1.2rem;}
+.admin-panel .buttons{justify-content:flex-start;}
 
 /* TIMELINE */
 #timeline{background:linear-gradient(180deg,#100c1b,#0e0b1a);}
@@ -442,6 +450,30 @@ section{padding:5.5rem 1.5rem;position:relative;}
 
 <button id="adminBtn" class="admin-launch" title="Admin Dashboard">👤</button>
 
+<div id="adminOverlay" class="admin-overlay" onclick="if(event.target===this)closeAdmin()">
+  <div class="admin-panel">
+    <button class="admin-close" onclick="closeAdmin()">✕</button>
+    <h2>Admin Dashboard</h2>
+    <div id="adminAuthCard" class="auth-card">
+      <p class="subtitle">Please sign in to view submitted messages.</p>
+      <div class="auth-field"><label for="adminId">Admin ID</label><input id="adminId" class="auth-input" autocomplete="username"></div>
+      <div class="auth-field"><label for="adminPw">Password</label><input id="adminPw" type="password" class="auth-input" autocomplete="current-password"></div>
+      <button id="loginBtn" class="btn auth-submit">Login</button>
+      <div id="authMsg" class="auth-msg"></div>
+    </div>
+    <div id="adminPanel" style="display:none;">
+      <p class="subtitle">Feedback submitted from the birthday page. Stored locally in browser storage.</p>
+      <div id="feedbackList" class="feedback-list"></div>
+      <div class="buttons">
+        <button id="refreshBtn" class="btn">Refresh</button>
+        <button id="clearBtn" class="btn">Clear All</button>
+        <button id="logoutBtn" class="btn">Logout</button>
+      </div>
+      <p class="note">Note: this dashboard reads from localStorage under the key <code>angelFeedbacks</code>. If no entries appear, make sure the birthday page is opened from the same folder in the browser.</p>
+    </div>
+  </div>
+</div>
+
 <!-- SECRET POPUP -->
 <div id="secretPopup">
   <div class="sec-card">
@@ -650,7 +682,40 @@ const audio=document.getElementById('bgAudio');
 audio.volume=0.3;let playing=false;
 mBtn.addEventListener('click',()=>{if(playing){audio.pause();mBtn.classList.add('paused');}else{audio.play().catch(()=>{});mBtn.classList.remove('paused');}playing=!playing;});
 
-document.getElementById('adminBtn').addEventListener('click',()=>{window.open('admin-dashboard.html','_blank');});
+const ADMIN_USER='admin';
+const ADMIN_PASS='birthday2026';
+const AUTH_KEY='angelAdminAuth';
+const adminOverlay=document.getElementById('adminOverlay');
+const adminAuthCard=document.getElementById('adminAuthCard');
+const adminPanel=document.getElementById('adminPanel');
+const adminId=document.getElementById('adminId');
+const adminPw=document.getElementById('adminPw');
+const authMsg=document.getElementById('authMsg');
+const loginBtn=document.getElementById('loginBtn');
+const refreshBtn=document.getElementById('refreshBtn');
+const clearBtn=document.getElementById('clearBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+const feedbackList=document.getElementById('feedbackList');
+
+function openAdmin(){adminOverlay.classList.add('on');if(isAuthenticated()){setAdminAuth(true);loadAdminFeedback();}else{setAdminAuth(false);adminId.focus();}}
+function closeAdmin(){adminOverlay.classList.remove('on');}
+function showAdminSection(show){adminAuthCard.style.display=show?'none':'block';adminPanel.style.display=show?'block':'none';}
+function setAdminAuth(valid){if(valid){sessionStorage.setItem(AUTH_KEY,'true');}else{sessionStorage.removeItem(AUTH_KEY);}showAdminSection(valid);}
+function isAuthenticated(){return sessionStorage.getItem(AUTH_KEY)==='true';}
+function loadAdminFeedback(){const raw=localStorage.getItem('angelFeedbacks');let data=[];try{data=JSON.parse(raw)||[]}catch(e){data=[];}
+ feedbackList.innerHTML='';
+ if(!data.length){feedbackList.innerHTML='<div class="empty">No feedback submitted yet.</div>';return;}
+ data.slice().reverse().forEach(entry=>{const item=document.createElement('div');item.className='feedback-item';const time=new Date(entry.created||Date.now()).toLocaleString();item.innerHTML=`<time>${time}</time><p>${entry.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`;feedbackList.appendChild(item);});
+}
+function adminLogin(){const id=adminId.value.trim();const pw=adminPw.value.trim();if(id===ADMIN_USER&&pw===ADMIN_PASS){authMsg.textContent='Login successful.';authMsg.style.color='#a8ffbd';setAdminAuth(true);loadAdminFeedback();}else{authMsg.textContent='ID or password is incorrect.';authMsg.style.color='#ffadad';}}
+loginBtn.addEventListener('click',adminLogin);
+adminPw.addEventListener('keyup',e=>{if(e.key==='Enter')adminLogin();});
+refreshBtn.addEventListener('click',loadAdminFeedback);
+clearBtn.addEventListener('click',()=>{if(confirm('Clear all submitted feedback?')){localStorage.removeItem('angelFeedbacks');loadAdminFeedback();}});
+logoutBtn.addEventListener('click',()=>{setAdminAuth(false);adminId.value='';adminPw.value='';authMsg.textContent='';});
+if(isAuthenticated()){setAdminAuth(true);}
+
+adminBtn.addEventListener('click',openAdmin);
 
 // SECRET
 function showSecret(){document.getElementById('secretPopup').classList.add('on');launchConfetti();}
