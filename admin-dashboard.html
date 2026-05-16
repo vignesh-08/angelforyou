@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Poppins:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--pink:#f4a7c0;--lav:#c9b8f0;--black:#0d0b14;--white:#fefefe;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+body{min-height:100vh;background:#08050c;color:#fdfcff;padding:2rem;}
+main{max-width:900px;margin:0 auto;}
+h1{font-family:'Cormorant Garamond',serif;font-size:3rem;margin-bottom:1rem;color:var(--pink);}
+p.subtitle{margin-bottom:1.5rem;color:rgba(255,255,255,.75);}
+.auth-card{background:rgba(255,255,255,.05);border:1px solid rgba(244,167,192,.2);border-radius:22px;padding:2rem;box-shadow:0 0 50px rgba(244,167,192,.08);max-width:520px;}
+.auth-field{margin-bottom:1rem;text-align:left;}
+.auth-field label{display:block;color:rgba(255,255,255,.75);font-size:.9rem;margin-bottom:.35rem;}
+.auth-input{width:100%;padding:.95rem 1rem;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;font-size:1rem;outline:none;}
+.auth-input:focus{border-color:rgba(244,167,192,.5);box-shadow:0 0 20px rgba(244,167,192,.12);}
+.auth-submit{width:100%;margin-top:.8rem;}
+#logoutBtn{background:rgba(255,255,255,.1);color:#111;}
+.auth-msg{margin-top:.9rem;color:#ffd6e7;}
+.feedback-list{display:grid;gap:1rem;}
+.feedback-item{background:rgba(255,255,255,.05);border:1px solid rgba(244,167,192,.18);border-radius:18px;padding:1.35rem;box-shadow:0 0 40px rgba(244,167,192,.06);}
+.feedback-item time{display:block;color:rgba(255,255,255,.6);font-size:.88rem;margin-bottom:.75rem;}
+.feedback-item p{font-size:1rem;line-height:1.7;color:#fff;}
+.empty{color:rgba(255,255,255,.6);font-size:1rem;}
+.buttons{display:flex;gap:.8rem;margin-top:1.5rem;flex-wrap:wrap;}
+.btn{padding:.85rem 1.4rem;border:none;border-radius:999px;background:linear-gradient(135deg,var(--pink),var(--lav));color:#111;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn:hover{transform:translateY(-2px);}
+.note{margin-top:1rem;font-size:.88rem;color:rgba(255,255,255,.6);}
+</style>
+</head>
+<body>
+<main>
+  <h1>Admin Dashboard</h1>
+  <div id="authContainer" class="auth-card">
+    <p class="subtitle">Please sign in to view submitted messages.</p>
+    <div class="auth-field"><label for="adminId">Admin ID</label><input id="adminId" class="auth-input" autocomplete="username"></div>
+    <div class="auth-field"><label for="adminPw">Password</label><input id="adminPw" type="password" class="auth-input" autocomplete="current-password"></div>
+    <button id="loginBtn" class="btn auth-submit">Login</button>
+    <div id="authMsg" class="auth-msg"></div>
+  </div>
+  <div id="dashboardContainer" style="display:none;">
+    <p class="subtitle">Feedback submitted from the birthday page. Stored locally in browser storage.</p>
+    <div id="feedbackList" class="feedback-list"></div>
+    <div class="buttons">
+      <button id="refreshBtn" class="btn">Refresh</button>
+      <button id="clearBtn" class="btn">Clear All</button>
+      <button id="logoutBtn" class="btn">Logout</button>
+    </div>
+    <p class="note">Note: this dashboard reads from localStorage under the key <code>angelFeedbacks</code>. If no entries appear, make sure the birthday page and this file are opened from the same folder in the browser.</p>
+  </div>
+</main>
+<script>
+const ADMIN_USER='admin';
+const ADMIN_PASS='birthday2026';
+const AUTH_KEY='angelAdminAuth';
+const authContainer=document.getElementById('authContainer');
+const dashboardContainer=document.getElementById('dashboardContainer');
+const authMsg=document.getElementById('authMsg');
+const loginBtn=document.getElementById('loginBtn');
+const adminId=document.getElementById('adminId');
+const adminPw=document.getElementById('adminPw');
+const listEl=document.getElementById('feedbackList');
+const refreshBtn=document.getElementById('refreshBtn');
+const clearBtn=document.getElementById('clearBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+function showDashboard(show){authContainer.style.display=show?'none':'block';dashboardContainer.style.display=show?'block':'none';}
+function setAuth(valid){if(valid){sessionStorage.setItem(AUTH_KEY,'true');}else{sessionStorage.removeItem(AUTH_KEY);}showDashboard(valid);}
+function isAuthenticated(){return sessionStorage.getItem(AUTH_KEY)==='true';}
+function loadFeedback(){const raw=localStorage.getItem('angelFeedbacks');let data=[];try{data=JSON.parse(raw)||[]}catch(e){data=[];}
+ listEl.innerHTML='';
+ if(!data.length){listEl.innerHTML='<div class="empty">No feedback submitted yet.</div>';return;}
+ data.slice().reverse().forEach(entry=>{const item=document.createElement('div');item.className='feedback-item';const time=new Date(entry.created||Date.now()).toLocaleString();item.innerHTML=`<time>${time}</time><p>${entry.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`;listEl.appendChild(item);});
+}
+function login(){const id=adminId.value.trim();const pw=adminPw.value.trim();if(id===ADMIN_USER&&pw===ADMIN_PASS){authMsg.textContent='Login successful.';authMsg.style.color='#a8ffbd';setTimeout(()=>{authMsg.textContent='';},1200);setAuth(true);loadFeedback();}else{authMsg.textContent='ID or password is incorrect.';authMsg.style.color='#ffadad';}}
+loginBtn.addEventListener('click',login);
+adminPw.addEventListener('keyup',e=>{if(e.key==='Enter')login();});
+refreshBtn.addEventListener('click',loadFeedback);
+clearBtn.addEventListener('click',()=>{if(confirm('Clear all submitted feedback?')){localStorage.removeItem('angelFeedbacks');loadFeedback();}});
+logoutBtn.addEventListener('click',()=>{setAuth(false);adminId.value='';adminPw.value='';authMsg.textContent='';});
+if(isAuthenticated()){setAuth(true);loadFeedback();}else{setAuth(false);}
+</script>
+</body>
+</html>
